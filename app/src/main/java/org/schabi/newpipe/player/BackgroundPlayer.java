@@ -31,6 +31,7 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.support.v7.graphics.Palette;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -72,7 +73,7 @@ public final class BackgroundPlayer extends Service {
     public static final String ACTION_FAST_FORWARD = "org.schabi.newpipe.player.BackgroundPlayer.ACTION_FAST_FORWARD";
 
     public static final String SET_IMAGE_RESOURCE_METHOD = "setImageResource";
-
+    public static final String SET_BACKGROUND_COLOR_METHOD ="setBackgroundColor" ;
     private BasePlayerImpl basePlayerImpl;
     private LockManager lockManager;
 
@@ -230,6 +231,11 @@ public final class BackgroundPlayer extends Service {
         }
 
         setRepeatModeIcon(remoteViews, basePlayerImpl.getRepeatMode());
+
+        if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            setNotificationColor(basePlayerImpl.getThumbnail(),notRemoteView);
+            setNotificationColor(basePlayerImpl.getThumbnail(),bigNotRemoteView);
+        }
     }
 
     /**
@@ -264,6 +270,21 @@ public final class BackgroundPlayer extends Service {
                 remoteViews.setInt(R.id.notificationRepeat, SET_IMAGE_RESOURCE_METHOD, R.drawable.exo_controls_repeat_all);
                 break;
         }
+    }
+
+    private void setNotificationColor(Bitmap thumbnail,RemoteViews view){
+        int bgColor;
+        Palette p = Palette.from(thumbnail).generate();
+        Palette.Swatch vibrant = p.getVibrantSwatch();
+        if(vibrant != null){
+            bgColor = vibrant.getRgb();
+            if (DEBUG) Log.d(TAG, "swatch background color : " + bgColor);
+            view.setInt(R.id.notificationContent,SET_BACKGROUND_COLOR_METHOD ,bgColor);
+        }
+        else{
+            if (DEBUG) Log.d(TAG, "swatch is  null");
+        }
+
     }
     //////////////////////////////////////////////////////////////////////////
 
@@ -300,10 +321,16 @@ public final class BackgroundPlayer extends Service {
             if (notRemoteView != null) {
                 notRemoteView.setImageViewBitmap(R.id.notificationCover,
                         basePlayerImpl.getThumbnail());
+                if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    setNotificationColor(basePlayerImpl.getThumbnail(),bigNotRemoteView);
+                }
             }
             if (bigNotRemoteView != null) {
                 bigNotRemoteView.setImageViewBitmap(R.id.notificationCover,
                         basePlayerImpl.getThumbnail());
+                if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    setNotificationColor(basePlayerImpl.getThumbnail(),bigNotRemoteView);
+                }
             }
         }
 
