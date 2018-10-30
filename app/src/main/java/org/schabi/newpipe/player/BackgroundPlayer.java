@@ -231,11 +231,6 @@ public final class BackgroundPlayer extends Service {
         }
 
         setRepeatModeIcon(remoteViews, basePlayerImpl.getRepeatMode());
-
-        if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            setNotificationColor(basePlayerImpl.getThumbnail(),notRemoteView);
-            setNotificationColor(basePlayerImpl.getThumbnail(),bigNotRemoteView);
-        }
     }
 
     /**
@@ -272,17 +267,39 @@ public final class BackgroundPlayer extends Service {
         }
     }
 
-    private void setNotificationColor(Bitmap thumbnail,RemoteViews view){
-        int bgColor;
-        Palette p = Palette.from(thumbnail).generate();
-        Palette.Swatch vibrant = p.getVibrantSwatch();
-        if(vibrant != null){
-            bgColor = vibrant.getRgb();
-            if (DEBUG) Log.d(TAG, "swatch background color : " + bgColor);
-            view.setInt(R.id.notificationContent,SET_BACKGROUND_COLOR_METHOD ,bgColor);
+    private void setNotificationColor(Bitmap thumbnail, RemoteViews notificationView){
+        if(thumbnail!=null) {
+            int bgColor, headerTextColor, bodyTextColor;
+            Palette p = Palette.from(thumbnail).generate();
+            Palette.Swatch vibrant = p.getVibrantSwatch();
+            if (vibrant != null) {
+                bgColor = vibrant.getRgb();
+                headerTextColor = vibrant.getTitleTextColor();
+                bodyTextColor = vibrant.getBodyTextColor();
+                if (DEBUG)
+                    Log.d(TAG, "swatch background color : " + String.format("#%06X", (0xFFFFFF & bgColor)));
+                if (DEBUG)
+                    Log.d(TAG, "swatch header color : " + String.format("#%06X", (0xFFFFFF & headerTextColor)));
+                if (DEBUG)
+                    Log.d(TAG, "swatch body color : " + String.format("#%06X", (0xFFFFFF & bodyTextColor)));
+                notificationView.setInt(R.id.notificationContent, SET_BACKGROUND_COLOR_METHOD, bgColor);
+                notificationView.setTextColor(R.id.notificationSongName, headerTextColor);
+                notificationView.setTextColor(R.id.notificationArtist, bodyTextColor);
+                notificationView.setTextColor(R.id.notificationTime, bodyTextColor);
+            } else {
+                if (DEBUG) Log.d(TAG, "swatch is  null");
+                notificationView.setInt(R.id.notificationContent, SET_BACKGROUND_COLOR_METHOD, getResources().getColor(R.color.background_notification_color));
+                notificationView.setTextColor(R.id.notificationSongName, getResources().getColor(R.color.background_title_color));
+                notificationView.setTextColor(R.id.notificationArtist, getResources().getColor(R.color.background_subtext_color));
+                notificationView.setTextColor(R.id.notificationTime, getResources().getColor(R.color.background_subtext_color));
+            }
         }
-        else{
-            if (DEBUG) Log.d(TAG, "swatch is  null");
+        else {
+            if (DEBUG) Log.d(TAG, "thumbnail is  null");
+            notificationView.setInt(R.id.notificationContent, SET_BACKGROUND_COLOR_METHOD, getResources().getColor(R.color.background_notification_color));
+            notificationView.setTextColor(R.id.notificationSongName, getResources().getColor(R.color.background_title_color));
+            notificationView.setTextColor(R.id.notificationArtist, getResources().getColor(R.color.background_subtext_color));
+            notificationView.setTextColor(R.id.notificationTime, getResources().getColor(R.color.background_subtext_color));
         }
 
     }
@@ -322,7 +339,7 @@ public final class BackgroundPlayer extends Service {
                 notRemoteView.setImageViewBitmap(R.id.notificationCover,
                         basePlayerImpl.getThumbnail());
                 if (Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    setNotificationColor(basePlayerImpl.getThumbnail(),bigNotRemoteView);
+                    setNotificationColor(basePlayerImpl.getThumbnail(),notRemoteView);
                 }
             }
             if (bigNotRemoteView != null) {
@@ -397,8 +414,14 @@ public final class BackgroundPlayer extends Service {
         @Override
         public void destroy() {
             super.destroy();
-            if (notRemoteView != null) notRemoteView.setImageViewBitmap(R.id.notificationCover, null);
-            if (bigNotRemoteView != null) bigNotRemoteView.setImageViewBitmap(R.id.notificationCover, null);
+            if (notRemoteView != null){
+                notRemoteView.setImageViewBitmap(R.id.notificationCover, null);
+                setNotificationColor(null,notRemoteView);
+            }
+            if (bigNotRemoteView != null){
+                bigNotRemoteView.setImageViewBitmap(R.id.notificationCover, null);
+                setNotificationColor(null,bigNotRemoteView);
+            }
         }
 
         /*//////////////////////////////////////////////////////////////////////////
