@@ -38,6 +38,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.NotificationCompat;
+import android.support.v7.graphics.Palette;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -100,6 +101,8 @@ public final class PopupVideoPlayer extends Service {
     private static final String POPUP_SAVED_WIDTH = "popup_saved_width";
     private static final String POPUP_SAVED_X = "popup_saved_x";
     private static final String POPUP_SAVED_Y = "popup_saved_y";
+
+    public static final String SET_BACKGROUND_COLOR_METHOD ="setBackgroundColor" ;
 
     private static final int MINIMUM_SHOW_EXTRA_WIDTH_DP = 300;
 
@@ -255,7 +258,7 @@ public final class PopupVideoPlayer extends Service {
         closeOverlayLayoutParams.gravity = Gravity.LEFT | Gravity.TOP;
         closeOverlayLayoutParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
 
-        closeOverlayButton.setVisibility(View.GONE);
+        closeOverlayView.findViewById(R.id.closeButton).setVisibility(View.GONE);
         windowManager.addView(closeOverlayView, closeOverlayLayoutParams);
     }
 
@@ -273,7 +276,9 @@ public final class PopupVideoPlayer extends Service {
         notRemoteView.setTextViewText(R.id.notificationSongName, playerImpl.getVideoTitle());
         notRemoteView.setTextViewText(R.id.notificationArtist, playerImpl.getUploaderName());
         notRemoteView.setImageViewBitmap(R.id.notificationCover, playerImpl.getThumbnail());
-
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            setNotificationColor(playerImpl.getThumbnail(),notRemoteView);
+        }
         notRemoteView.setOnClickPendingIntent(R.id.notificationPlayPause,
                 PendingIntent.getBroadcast(this, NOTIFICATION_ID, new Intent(ACTION_PLAY_PAUSE), PendingIntent.FLAG_UPDATE_CURRENT));
         notRemoteView.setOnClickPendingIntent(R.id.notificationStop,
@@ -377,7 +382,42 @@ public final class PopupVideoPlayer extends Service {
     private boolean checkPopupPositionBounds() {
         return checkPopupPositionBounds(screenWidth, screenHeight);
     }
+    private void setNotificationColor(Bitmap thumbnail, RemoteViews notificationView){
+        if(thumbnail!=null) {
+            int bgColor, headerTextColor, bodyTextColor;
+            Palette p = Palette.from(thumbnail).generate();
+            Palette.Swatch vibrant = p.getVibrantSwatch();
+            if (vibrant != null) {
+                bgColor = vibrant.getRgb();
+                headerTextColor = vibrant.getTitleTextColor();
+                bodyTextColor = vibrant.getBodyTextColor();
+                if (DEBUG)
+                    Log.d(TAG, "swatch background color : " + String.format("#%06X", (0xFFFFFF & bgColor)));
+                if (DEBUG)
+                    Log.d(TAG, "swatch header color : " + String.format("#%06X", (0xFFFFFF & headerTextColor)));
+                if (DEBUG)
+                    Log.d(TAG, "swatch body color : " + String.format("#%06X", (0xFFFFFF & bodyTextColor)));
+                notificationView.setInt(R.id.notificationContent, SET_BACKGROUND_COLOR_METHOD, bgColor);
+                notificationView.setTextColor(R.id.notificationSongName, headerTextColor);
+                notificationView.setTextColor(R.id.notificationArtist, bodyTextColor);
+                notificationView.setTextColor(R.id.notificationTime, bodyTextColor);
+            } else {
+                if (DEBUG) Log.d(TAG, "swatch is  null");
+                notificationView.setInt(R.id.notificationContent, SET_BACKGROUND_COLOR_METHOD, getResources().getColor(R.color.background_notification_color));
+                notificationView.setTextColor(R.id.notificationSongName, getResources().getColor(R.color.background_title_color));
+                notificationView.setTextColor(R.id.notificationArtist, getResources().getColor(R.color.background_subtext_color));
+                notificationView.setTextColor(R.id.notificationTime, getResources().getColor(R.color.background_subtext_color));
+            }
+        }
+        else {
+            if (DEBUG) Log.d(TAG, "thumbnail is  null");
+            notificationView.setInt(R.id.notificationContent, SET_BACKGROUND_COLOR_METHOD, getResources().getColor(R.color.background_notification_color));
+            notificationView.setTextColor(R.id.notificationSongName, getResources().getColor(R.color.background_title_color));
+            notificationView.setTextColor(R.id.notificationArtist, getResources().getColor(R.color.background_subtext_color));
+            notificationView.setTextColor(R.id.notificationTime, getResources().getColor(R.color.background_subtext_color));
+        }
 
+    }
     /**
      * Check if {@link #popupLayoutParams}' position is within a arbitrary boundary that goes from (0,0) to (boundaryWidth,boundaryHeight).
      * <p>
